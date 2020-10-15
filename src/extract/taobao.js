@@ -59,6 +59,8 @@ chrome.runtime.onMessage.addListener(
                     let deliveryStatus = "";
                     let paidAmount = cells[4].getElementsByClassName("price-mod__price___cYafX")[0].textContent.replace("￥","");
                     let shortTransportLink = "https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=" + orderId
+                    // let shortTransportLink = "https://detail.i56.taobao.com/call/queryTrace.do?dimension=TRADE_ID&tradeId=" + orderId;
+
                     let transportResponse = getSyncUrlResponse(shortTransportLink);
 
                     if (transportResponse.indexOf("签收") > 0){
@@ -96,6 +98,8 @@ chrome.runtime.onMessage.addListener(
 
 function getSyncUrlResponse(url){
     var xhr = new XMLHttpRequest();
+
+    xhr.withCredentials = true;
     xhr.open("GET", url, false);
     /*xhr.onreadystatechange = function() {
         if (xhr.readyState == 4) {
