@@ -21,7 +21,7 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
             document.getElementById('init').style.display ='none';
 
             setTimeout(function () {
-                alert('订单详情已经复制到粘贴板，您可以到Excel等应用中粘贴。'+ response.message);
+                alert('订单详情已经复制到粘贴板，您可以到Excel等应用中粘贴。由于限制，如果一个订单有多个包裹，只能自动获取到一个，请手动获取其他快递信息。'+ response.message);
             }, 500);
         }else{
             alert('订单获取失败。提示信息：' + response.message);
