@@ -27,13 +27,32 @@ chrome.runtime.onMessage.addListener(
 
                 for (let index = 0; index < orderElements.length && !stopRun; index++ ){
                     processedCount++;
-                    let orderId = orderElements[index].getElementsByTagName("tr")[0].getElementsByTagName("td")[0].textContent;
+                    let rows = orderElements[index].getElementsByTagName("tr");
+                    let orderId = rows[0].getElementsByTagName("td")[0].textContent;
                     orderId = orderId.substring(orderId.indexOf("订单号")+4);
 
-                    let cells = orderElements[index].getElementsByTagName("tr")[1].getElementsByTagName("td");
+                    let cells = rows[1].getElementsByTagName("td");
                     let itemName = cells[0].innerText;
                     let cutIndex = itemName.indexOf("[交易快照]");
-                    itemName = itemName.substring(0, cutIndex);
+                    if (cutIndex < 0){
+                        cutIndex = itemName.indexOf("\n");
+                    }
+
+                    if (cutIndex > 0){
+                        itemName = itemName.substring(0, cutIndex);
+                    }
+
+                    let remainingItemsCount = rows.length - 2;
+
+                    if (remainingItemsCount > 0){
+                        if (rows[rows.length - 1].getElementsByTagName("td")[0].innerText == "保险服务"){
+                            remainingItemsCount--;
+                        }
+
+                        if (remainingItemsCount > 0){
+                            itemName = itemName + " --及其他" + (rows.length - 2)+"件物品"
+                        }
+                    }
 
                     chrome.runtime.sendMessage({item: itemName, orderId: orderId, event: "processItem"});
 
@@ -42,7 +61,7 @@ chrome.runtime.onMessage.addListener(
                     let shortTransportLink = "https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=" + orderId
                     let transportResponse = getSyncUrlResponse(shortTransportLink);
 
-                    if (transportResponse.indexOf("签收人") > 0 ||  transportResponse.indexOf("已签收") > 0 || transportResponse.indexOf("代签收") > 0){
+                    if (transportResponse.indexOf("签收") > 0){
                         deliveryStatus = "已签收";
                     }
 
