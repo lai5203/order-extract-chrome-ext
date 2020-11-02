@@ -27,11 +27,12 @@ chrome.runtime.onMessage.addListener(
 
                 for (let index = 0; index < orderElements.length && !stopRun; index++ ){
                     processedCount++;
-                    let rows = orderElements[index].getElementsByTagName("tr");
-                    let orderId = rows[0].getElementsByTagName("td")[0].textContent;
+                    let bodies = orderElements[index].getElementsByTagName("tbody");
+                    let orderId = bodies[0].getElementsByTagName("td")[0].textContent;
                     orderId = orderId.substring(orderId.indexOf("订单号")+4);
 
-                    let cells = rows[1].getElementsByTagName("td");
+                    let itemRows = bodies[1].getElementsByTagName("tr");
+                    let cells = itemRows[0].getElementsByTagName("td");
                     let itemName = cells[0].innerText;
                     let cutIndex = itemName.indexOf("[交易快照]");
                     if (cutIndex < 0){
@@ -42,22 +43,27 @@ chrome.runtime.onMessage.addListener(
                         itemName = itemName.substring(0, cutIndex);
                     }
 
-                    let remainingItemsCount = rows.length - 2;
+                    let remainingItemsCount = itemRows.length - 1;
 
                     if (remainingItemsCount > 0){
-                        if (rows[rows.length - 1].getElementsByTagName("td")[0].innerText == "保险服务"){
+                        if (itemRows[itemRows.length - 1].getElementsByTagName("td")[0].innerText == "保险服务"){
                             remainingItemsCount--;
                         }
 
                         if (remainingItemsCount > 0){
-                            itemName = itemName + " --及其他" + (rows.length - 2)+"件物品"
+                            itemName = itemName + " --及其他" + (itemRows.length - 2)+"件物品"
                         }
                     }
 
                     chrome.runtime.sendMessage({item: itemName, orderId: orderId, event: "processItem"});
 
                     let deliveryStatus = "";
-                    let paidAmount = cells[4].getElementsByClassName("price-mod__price___cYafX")[0].textContent.replace("￥","");
+                    var priceEle = cells[4].getElementsByTagName('strong');
+                    let paidAmount = "获取失败";
+                    if (priceEle != null){
+                        paidAmount = priceEle[0].textContent.replace("￥","");
+                    }
+
                     let shortTransportLink = "https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=" + orderId
                     // let shortTransportLink = "https://detail.i56.taobao.com/call/queryTrace.do?dimension=TRADE_ID&tradeId=" + orderId;
 
@@ -109,6 +115,19 @@ function getSyncUrlResponse(url){
 
     xhr.send();
     return xhr.responseText;
+}
+
+function getTagMatchingClass(root, tag,  classRegex){
+    var all_divs = root.getElementsByTagName(tag);
+    for (var i = 0; i < all_divs.length; i++) {
+        var div = all_divs[i];
+
+        if (div.className.match(classRegex)){
+            return div;
+        }
+    }
+
+    return null;
 }
 
 
