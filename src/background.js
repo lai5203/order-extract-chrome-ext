@@ -7,7 +7,7 @@ chrome.runtime.onInstalled.addListener(function() {
         pageUrl: {hostEquals: 'buyertrade.taobao.com'},
       })
       ],
-      actions: [new chrome.declarativeContent.ShowPageAction()]
+      actions: [new chrome.declarativeContent.ShowAction()]
     }]);
   });
 });

@@ -29,6 +29,7 @@ chrome.runtime.onMessage.addListener(
                     processedCount++;
                     let bodies = orderElements[index].getElementsByTagName("tbody");
                     let orderId = bodies[0].getElementsByTagName("td")[0].textContent;
+                    let orderDate = orderId.substring(0,10);
                     orderId = orderId.substring(orderId.indexOf("订单号")+4);
 
                     let itemRows = bodies[1].getElementsByTagName("tr");
@@ -82,7 +83,7 @@ chrome.runtime.onMessage.addListener(
                     let expressName = transportResponse["expressName"] ?? "无记录";
                     let expressId = transportResponse["expressId"] ?? "无记录";
 
-                    result = result + itemName + "\t" + paidAmount + "\t" + expressName + "\t" + expressId + "\t" + deliveryStatus + "\n";
+                    result = result + orderDate + "\t" + itemName + "\t" + paidAmount + "\t" + expressName + "\t" + expressId + "\t" + deliveryStatus + "\n";
                 }
 
                 copyTextToClipboard(result);
