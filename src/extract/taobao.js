@@ -18,6 +18,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
     try{
         stopRun = false;
         let orderDate = "";
+        let orderId = "";
         let result = "";
         let orderExpressName = "";
         let orderExpressId = "";
@@ -45,10 +46,13 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
             processedCount++;
             orderMoreParcleHighlight = "";
             orderDeliveryStatus = "";
+            orderId = "";
+            orderDate = "";
+
             let bodies = orderElements[index].getElementsByTagName("tbody");
-            let orderId = bodies[0].getElementsByTagName("td")[0].textContent;
-            orderDate = orderId.substring(0,10);
-            orderId = orderId.substring(orderId.indexOf("订单号")+4);
+            let orderIdCell = bodies[0].getElementsByTagName("td")[0].textContent;
+            orderDate = orderIdCell.substring(0,10);
+            orderId = orderIdCell.substring(orderIdCell.indexOf("订单号")+4);
 
             let tmallCell = bodies[0].getElementsByTagName("td")[1].getElementsByTagName("img");
 
@@ -154,7 +158,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
                 orderExpressId = transportResponse["expressId"] ?? "无记录";
             }
 
-            result = result + orderDate + "\t" + orderItemName + "\t" + orderPaidAmount + "\t" + (0-orderPaidAmount) + "\t" + orderExpressName + "\t" + orderExpressId + "\t" + orderDeliveryStatus + "\t" + orderDeliveryAddress + "\t" + orderMoreParcleHighlight + "\n";
+            result = result + orderDate + "\t" + orderId + "\t" + orderItemName + "\t" + orderPaidAmount + "\t" + (0-orderPaidAmount) + "\t" + orderExpressName + "\t" + orderExpressId + "\t" + orderDeliveryStatus + "\t" + orderDeliveryAddress + "\t" + orderMoreParcleHighlight + "\n";
             
         }
 
