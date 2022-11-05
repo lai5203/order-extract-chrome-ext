@@ -44,6 +44,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
         for (let index = 0; index < orderElements.length && !stopRun; index++ ){
             processedCount++;
             orderMoreParcleHighlight = "";
+            orderDeliveryStatus = "";
             let bodies = orderElements[index].getElementsByTagName("tbody");
             let orderId = bodies[0].getElementsByTagName("td")[0].textContent;
             orderDate = orderId.substring(0,10);
