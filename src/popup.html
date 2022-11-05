@@ -12,15 +12,17 @@
 </head>
 <body>
 
-<div style="outline: none; width: 200px">
+<div style="outline: none; width: 250px">
     <div id="init" style="text-align: center">
-        <p>请选择</p>
+        <button id="extractOrders">获取订单信息</button>
+    </div>
 
-        <button id="extractOrders">只获取订单信息</button>
-
-        <p></p>
-        <button id="extractOrderAndDelivery">获取订单和物流信息</button>
-
+        
+    <div>
+        <p>选择包含的信息：</p>
+        <input type="checkbox" id="basicInfo" name="basicInfo" value="true" checked disabled> <label>订单本页面基础信息</label><br>
+        <input type="checkbox" id="addressChkbox" name="address" value="true" checked> <label>收货地址（可尝试检查疑似多件包裹）</label><br>
+        <input type="checkbox" id="deliveryChkbox" name="delivery" value="true" checked> <label>物流信息</label>
     </div>
     <div id="loading" style="text-align: center; display: none; height: 380px">
         <p>获取信息中，请稍等...</p>
@@ -33,6 +35,8 @@
 
     <div id="done" style="text-align: center; outline: none; display: none">
         <p>信息获取成功，已复制在粘贴板。
+        <br>请留意疑似额外包裹订单和获取失败订单。
+        <br>
         <span style="font-size: 80px; vertical-align: after-edge">&#9989</span></p>
     </div>
 </div>

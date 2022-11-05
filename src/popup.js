@@ -2,28 +2,22 @@
 
 chrome.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
-        if (request.event == "processItem"){
-            document.getElementById('display').innerText = request.display;
-        }
-
         sendResponse({success: true});
     });
 
     document.addEventListener('DOMContentLoaded', function() {
         var extractOrdersBtn = document.getElementById('extractOrders');
         extractOrdersBtn.addEventListener('click', function() {
-            extractOrders();
-        }, false);
-
-        var extractOrderAndDeliveryBtn = document.getElementById('extractOrderAndDelivery');
-        extractOrderAndDeliveryBtn.addEventListener('click', function() {
-            extractOrderAndDelivery();
+            let addressChk = document.getElementById('addressChkbox').checked;
+            let deliveryChk = document.getElementById('deliveryChkbox').checked;
+            
+            extractOrders(addressChk, deliveryChk);
         }, false);
 
       }, false);
     
 
-function extractOrders(){
+function extractOrders(addressChk, deliveryChk){
     console.log("extractOrders");
 
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -32,31 +26,7 @@ function extractOrders(){
 
         startProcessing();
 
-        chrome.tabs.sendMessage(activeTab.id, {"command": "extract-order", "debug": false},function(response) {
-            if (response.success){
-                endProcessing();
-    
-                setTimeout(function () {
-                    alert('订单信息（不包含物流）已经复制到粘贴板，您可以到Excel等应用中粘贴。'+ response.message);
-                }, 500);
-            }else{
-                alert('订单获取失败。提示信息：' + response.message);
-            }
-        });
-    });
-}
-
-
-function extractOrderAndDelivery(){
-    console.log("extractOrderAndDelivery");
-
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        var activeTab = tabs[0];
-        console.log(activeTab.url);
-
-        startProcessing();
-
-        chrome.tabs.sendMessage(activeTab.id, {"command": "extract-order-delivery", "debug": false},function(response) {
+        chrome.tabs.sendMessage(activeTab.id, {"command": "extract", "debug": false, "addressChk": addressChk, "deliveryChk": deliveryChk},function(response) {
             if (response.success){
                 endProcessing();
     
@@ -69,6 +39,7 @@ function extractOrderAndDelivery(){
         });
     });
 }
+
 
 function startProcessing(){
     document.getElementById('loading').style.display ='block';
