@@ -8,18 +8,26 @@ chrome.runtime.onMessage.addListener(
         if (request.command == "stop"){
             console.log("Received stop signal");
             stopRun = true;
-        }else if(request.command == "extract-order-delivery"){
-            extract(request, sendResponse, true);
-        }else if(request.command == "extract-order"){
-            extract(request, sendResponse, false);
+        }else if(request.command == "extract"){
+            extract(request, sendResponse, request.deliveryChk, request.addressChk);
         }
     }
 );
 
-function extract(request, sendResponse, includeDelivery){
+function extract(request, sendResponse, includeDelivery, includeAddress){
     try{
         stopRun = false;
+        let orderDate = "";
         let result = "";
+        let orderExpressName = "";
+        let orderExpressId = "";
+        let orderDeliveryStatus = "";
+        let orderPaidAmount = "获取失败";
+        let orderDeliveryAddress = "";
+        let orderItemName = "";
+        let orderMoreParcleHighlight = "";
+        let isOrderTmall = false;
+
         let orderRoot = document.getElementById("tp-bought-root");
         let orderElements = orderRoot.getElementsByClassName("js-order-container");
         // let orderElements = orderRoot.getElementsByClassName("index-mod__order-container___1ur4- js-order-container");
@@ -35,21 +43,42 @@ function extract(request, sendResponse, includeDelivery){
 
         for (let index = 0; index < orderElements.length && !stopRun; index++ ){
             processedCount++;
+            orderMoreParcleHighlight = "";
             let bodies = orderElements[index].getElementsByTagName("tbody");
             let orderId = bodies[0].getElementsByTagName("td")[0].textContent;
-            let orderDate = orderId.substring(0,10);
+            orderDate = orderId.substring(0,10);
             orderId = orderId.substring(orderId.indexOf("订单号")+4);
+
+            let tmallCell = bodies[0].getElementsByTagName("td")[1].getElementsByTagName("img");
+
+            if (tmallCell != undefined && tmallCell.length > 0){
+                isOrderTmall = true;
+
+
+                // Tmall icon: //gtd.alicdn.com/tps/i2/TB1aJQKFVXXXXamXFXXEDhGGXXX-32-32.png
+                // Enterprise icon: //img.alicdn.com/gtd.alicdn.com(trade)/tps/i2/TB1Yta.HVXXXXX3XFXXAz6UFXXX-16-16.png
+                if (tmallCell[0].src.indexOf("trade") > -1){
+                    console.log("orderID: " + orderId + " is not Tmall");
+                    isOrderTmall = false;
+                }
+            }else{
+                console.log("orderID: " + orderId + " is not Tmall");
+                isOrderTmall = false;
+            }
+
+            
+            
 
             let itemRows = bodies[1].getElementsByTagName("tr");
             let cells = itemRows[0].getElementsByTagName("td");
-            let itemName = cells[0].innerText;
-            let cutIndex = itemName.indexOf("[交易快照]");
+            orderItemName = cells[0].innerText;
+            let cutIndex = orderItemName.indexOf("[交易快照]");
             if (cutIndex < 0){
-                cutIndex = itemName.indexOf("\n");
+                cutIndex = orderItemName.indexOf("\n");
             }
 
             if (cutIndex > 0){
-                itemName = itemName.substring(0, cutIndex);
+                orderItemName = orderItemName.substring(0, cutIndex);
             }
 
             let remainingItemsCount = itemRows.length - 1;
@@ -60,27 +89,58 @@ function extract(request, sendResponse, includeDelivery){
                 }
 
                 if (remainingItemsCount > 0){
-                    itemName = itemName + " --及其他" + (itemRows.length - 2)+"件物品"
+                    orderItemName = orderItemName + " --及其他" + (itemRows.length - 2)+"件物品"
                 }
             }
 
-            chrome.runtime.sendMessage({item: itemName, orderId: orderId, event: "processItem"});
+            chrome.runtime.sendMessage({item: orderItemName, orderId: orderId, event: "processItem"});
 
-            let deliveryStatus = "";
+            
             var priceEle = cells[4].getElementsByTagName('strong');
-            let paidAmount = "获取失败";
+            
             if (priceEle != null){
-                paidAmount = priceEle[0].textContent.replace("￥","");
+                orderPaidAmount = priceEle[0].textContent.replace("￥","");
+            }
+
+            if (includeAddress){
+                orderDeliveryAddress = "获取失败";
+                let shortTransportLink = "";
+                if (isOrderTmall){
+                    shortTransportLink = "https://trade.tmall.com/detail/orderDetail.htm?bizOrderId=" + orderId;
+                }else{
+                    shortTransportLink = "https://trade.taobao.com/trade/detail/trade_item_detail.htm?bizOrderId=" + orderId;
+                }
+
+                let transportResponse = getSyncUrlResponse(shortTransportLink);
+                if (request.debug){
+                    console.log("address response: ", transportResponse);
+                }
+
+                if (transportResponse != ""){
+                    if (transportResponse.indexOf("包裹2") != -1){
+                        orderMoreParcleHighlight = "此订单有额外包裹，请手动核实添加";
+                    }
+
+                    if (isOrderTmall){
+                        orderDeliveryAddress = getTmallOrderAddress(transportResponse);
+                    }else{
+                        orderDeliveryAddress = getNonTmallOrderAddress(transportResponse);
+                    }
+                    
+
+
+                }
+
             }
 
             if (includeDelivery){
-                let shortTransportLink = "https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=" + orderId
+                let shortTransportLink = "https://buyertrade.taobao.com/trade/json/transit_step.do?bizOrderId=" + orderId;
                 // let shortTransportLink = "https://detail.i56.taobao.com/call/queryTrace.do?dimension=TRADE_ID&tradeId=" + orderId;
     
                 let transportResponse = getSyncUrlResponse(shortTransportLink);
     
                 if (transportResponse.indexOf("签收") > 0){
-                    deliveryStatus = "已签收";
+                    orderDeliveryStatus = "已签收";
                 }
     
                 if (request.debug){
@@ -89,13 +149,11 @@ function extract(request, sendResponse, includeDelivery){
     
                 transportResponse = JSON.parse(transportResponse);
     
-                let expressName = transportResponse["expressName"] ?? "无记录";
-                let expressId = transportResponse["expressId"] ?? "无记录";
-    
-                result = result + orderDate + "\t" + itemName + "\t" + paidAmount + "\t" + expressName + "\t" + expressId + "\t" + deliveryStatus + "\n";
-            }else{
-                result = result + orderDate + "\t" + itemName + "\t" + paidAmount + "\t" + (0-paidAmount) + "\n";
+                orderExpressName = transportResponse["expressName"] ?? "无记录";
+                orderExpressId = transportResponse["expressId"] ?? "无记录";
             }
+
+            result = result + orderDate + "\t" + orderItemName + "\t" + orderPaidAmount + "\t" + (0-orderPaidAmount) + "\t" + orderExpressName + "\t" + orderExpressId + "\t" + orderDeliveryStatus + "\t" + orderDeliveryAddress + "\t" + orderMoreParcleHighlight + "\n";
             
         }
 
@@ -112,19 +170,66 @@ function extract(request, sendResponse, includeDelivery){
     }
 }
 
+function getTmallOrderAddress(detailsHtml){
+    let lines = detailsHtml.split("\n");
+    for (var i = 0; i < lines.length; i++){
+        let line = lines[i];
+        if (line.indexOf("var detailData =") != -1){
+            line = line.replace("var detailData =","");
+            let orderDetails = JSON.parse(line);
+            let basics = orderDetails.basic.lists;
+
+            for (var j = 0; j < basics.length; j++){
+                let basic = basics[j];
+                if (basic.key == "收货地址"){
+                    return orderDeliveryAddress = basic.content[0].text;
+                }
+            }
+        }
+    }
+
+    return "获取失败";
+}
+
+function getNonTmallOrderAddress(detailsHtml){
+    let lines = detailsHtml.split("\n");
+    for (var i = 0; i < lines.length; i++){
+        let line = lines[i];
+        if (line.indexOf("var data = JSON.parse('") != -1){
+            line = line.replace("var data = JSON.parse('","");
+            line = line.substring(0, line.length - 3);
+
+            line = line.trim().replace(/\\"/gi, '"');
+
+            let orderDetails = JSON.parse(line);
+            return orderDetails.deliveryInfo.address;
+
+        }
+    }
+
+    return "获取失败";
+}
+
 function getSyncUrlResponse(url){
     var xhr = new XMLHttpRequest();
 
     xhr.withCredentials = true;
-    xhr.open("GET", url, false);
-    /*xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
-            return xhr.responseText;
-        }
-    }*/
+    
+    try{
+        xhr.open("GET", url, false);
+        /*xhr.onreadystatechange = function() {
+            if (xhr.readyState == 4) {
+                return xhr.responseText;
+            }
+        }*/
 
-    xhr.send();
-    return xhr.responseText;
+        xhr.send();
+        return xhr.responseText;
+    }catch (e){
+        console.error(e);
+        return "";
+    }
+    
 }
 
 function getTagMatchingClass(root, tag,  classRegex){
