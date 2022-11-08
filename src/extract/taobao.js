@@ -9,12 +9,12 @@ chrome.runtime.onMessage.addListener(
             console.log("Received stop signal");
             stopRun = true;
         }else if(request.command == "extract"){
-            extract(request, sendResponse, request.deliveryChk, request.addressChk);
+            extract(request.debug, sendResponse, request.deliveryChk, request.addressChk);
         }
     }
 );
 
-function extract(request, sendResponse, includeDelivery, includeAddress){
+function extract(isDebug, sendResponse, includeDelivery, includeAddress){
     try{
         stopRun = false;
         let orderDate = "";
@@ -53,6 +53,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
             let orderIdCell = bodies[0].getElementsByTagName("td")[0].textContent;
             orderDate = orderIdCell.substring(0,10);
             orderId = orderIdCell.substring(orderIdCell.indexOf("订单号")+4);
+            console.log("Processing Order ID: " + orderId);
 
             let tmallCell = bodies[0].getElementsByTagName("td")[1].getElementsByTagName("img");
 
@@ -117,7 +118,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
                 }
 
                 let transportResponse = getSyncUrlResponse(shortTransportLink);
-                if (request.debug){
+                if (isDebug){
                     console.log("address response: ", transportResponse);
                 }
 
@@ -127,9 +128,9 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
                     }
 
                     if (isOrderTmall){
-                        orderDeliveryAddress = getTmallOrderAddress(transportResponse);
+                        orderDeliveryAddress = getTmallOrderAddress(isDebug, transportResponse);
                     }else{
-                        orderDeliveryAddress = getNonTmallOrderAddress(transportResponse);
+                        orderDeliveryAddress = getNonTmallOrderAddress(isDebug, transportResponse);
                     }
                     
 
@@ -148,7 +149,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
                     orderDeliveryStatus = "已签收";
                 }
     
-                if (request.debug){
+                if (isDebug){
                     console.log("transport response: ", transportResponse)
                 }
     
@@ -163,7 +164,7 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
         }
 
         copyTextToClipboard(result);
-        if (request.debug){
+        if (isDebug){
             console.log(result)
         }
         message = "已处理" + processedCount+ "条记录，一共"+orderElements.length+"条。";
@@ -175,19 +176,29 @@ function extract(request, sendResponse, includeDelivery, includeAddress){
     }
 }
 
-function getTmallOrderAddress(detailsHtml){
+function getTmallOrderAddress(isDebug, detailsHtml){
     let lines = detailsHtml.split("\n");
     for (var i = 0; i < lines.length; i++){
         let line = lines[i];
-        if (line.indexOf("var detailData =") != -1){
+        if (line.indexOf("var detailData =") != -1){     
+            if (isDebug){
+                console.log('Address Line:');
+                console.log(line);
+            }
+
+            if (line.indexOf("FAIL_SYS_USER_VALIDATE") > -1){
+                return "命中手工验证，无法获取。如果订单少，请手动获取；如果订单多，请在淘宝手动点击订单详情并完成人工认证后，再重新运行此插件。"
+            }
+
             line = line.replace("var detailData =","");
+
             let orderDetails = JSON.parse(line);
             let basics = orderDetails.basic.lists;
 
             for (var j = 0; j < basics.length; j++){
                 let basic = basics[j];
                 if (basic.key == "收货地址"){
-                    return orderDeliveryAddress = basic.content[0].text;
+                    return basic.content[0].text;
                 }
             }
         }
@@ -196,15 +207,31 @@ function getTmallOrderAddress(detailsHtml){
     return "获取失败";
 }
 
-function getNonTmallOrderAddress(detailsHtml){
+function getNonTmallOrderAddress(isDebug, detailsHtml){
     let lines = detailsHtml.split("\n");
     for (var i = 0; i < lines.length; i++){
         let line = lines[i];
         if (line.indexOf("var data = JSON.parse('") != -1){
+            if (isDebug){
+                console.log('Address Line:');
+                console.log(line);
+            }
+
+            if (line.indexOf("FAIL_SYS_USER_VALIDATE") > -1){
+                return "命中手工验证，无法获取。如果订单少，请手动获取；如果订单多，请在淘宝手动点击订单详情并完成人工认证后，再重新运行此插件。"
+            }
+
             line = line.replace("var data = JSON.parse('","");
             line = line.substring(0, line.length - 3);
+            line = line.trim();
 
-            line = line.trim().replace(/\\"/gi, '"');
+            line = line.replace(/([{,:\[])\\"/gi, '$1"');
+            line = line.replace(/\\"([}:,\]])/gi, '"$1');
+
+            if (isDebug){
+                console.log('Address Line （after replacing):');
+                console.log(line);
+            }
 
             let orderDetails = JSON.parse(line);
             return orderDetails.deliveryInfo.address;
